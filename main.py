@@ -117,14 +117,15 @@ map_data["nivel_cobertura"] = map_data["best_server"].apply(cover_level)
 
 #%%
 #GEnerate the coverage plot
-#BBox = ((map_data["lon"].min(), map_data["lon"].max(), map_data["lat"].min(),map_data["lat"].max()))
+
 #Build a box to plt results on the georeferenced map
 BBox = ((map_data["lon"].min()-0.002, map_data["lon"].max()+0.002, map_data["lat"].min()-0.002,map_data["lat"].max()+0.002))
 mapGeoRef = plt.imread('./figs/map4.png')
+
 #plot the results over the georeferenced map
 fig, ax = plt.subplots(figsize = (8,7))
 sns.scatterplot(x = "lon", y = "lat", alpha= 0.75, ax =ax, legend='brief', zorder=1, data = map_data, hue = map_data["nivel_cobertura"].tolist())
-ax.set_title('Cover Map by RSSI level')
+ax.set_title('Coverage Map by RSSI level')
 ax.set_xlim(BBox[0],BBox[1])
 ax.set_ylim(BBox[2],BBox[3])
 ax.imshow(mapGeoRef, zorder=0, extent = BBox, aspect= 'equal')
@@ -136,6 +137,7 @@ plt.show()
 X_test.to_pickle("./dataOut/rssiReal.pkl")
 df_Rssi = pd.read_pickle("./dataOut/rssiReal.pkl")
 df_Rssi["index"] = range(1,614)
+df_Rssi["error"] = df_Rssi["RSSI_pred_8"] -  df_Rssi["RSSI_real_8"]
 #%%
 # style
 plt.style.use('seaborn-darkgrid')
@@ -149,7 +151,7 @@ for column in df_Rssi.drop(["index","dist_1","dist_2","dist_3", "lat", "lon",
                             "RSSI_pred_0","RSSI_real_0","RSSI_pred_1","RSSI_real_1",
                             "RSSI_pred_2","RSSI_real_2","RSSI_pred_3","RSSI_real_3",
                             "RSSI_pred_4","RSSI_real_4","RSSI_pred_5","RSSI_real_5",
-                            "RSSI_pred_6","RSSI_real_6","RSSI_pred_7","RSSI_real_7"], axis = 1):
+                            "RSSI_pred_6","RSSI_real_6","RSSI_pred_7","RSSI_real_7", "RSSI_pred_8","RSSI_real_8"], axis = 1):
     num += 1
     plt.plot(df_Rssi["index"], df_Rssi[column], marker='', color=palette(num), linewidth=1, alpha=0.9, label=column)
 
@@ -157,7 +159,7 @@ for column in df_Rssi.drop(["index","dist_1","dist_2","dist_3", "lat", "lon",
 plt.legend(loc=2, ncol=2)
 
 # Add titles
-plt.title("Predict RSSI x Real RSSI ", loc='left', fontsize=12, fontweight=0, color='orange')
+plt.title("Error between Predict RSSI and Real RSSI ", loc='left', fontsize=12, fontweight=0, color='orange')
 plt.xlabel("Test Points")
 plt.ylabel("RSSI Level")
 plt.show()

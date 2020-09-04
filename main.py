@@ -74,7 +74,7 @@ print(X_test.head())
 # Create a ".csv" file
 file_name = "./dataOut/test_{0}.csv".format(datetime.now().strftime("%d_%b_%Y_%I_%M_%S_%p"))
 print(file_name)
-X_test.to_csv(file_name, index=False)
+X_test.to_csv(file_name, index=True)
 
 #%%
 #Create a grid to execute predictions
@@ -85,6 +85,7 @@ grid = CdbFactory.CreateCdb(df_meds["lat"].min(), df_meds["lon"].min(),
                             df_meds["lon"].max(), 20)
 
 #%%
+#Mapping grid snd put on a file
 gridComDist = ImportHelper.PutDistancesFromBtss(bts, grid)
 coverMaps_arr = model.predict(gridComDist[features])
 coverMaps = pd.DataFrame(data=coverMaps_arr, columns=targets)
@@ -92,10 +93,12 @@ coverMapsFinal = pd.concat([coverMaps, gridComDist], axis = 1)
 coverMapsFinal.to_pickle("./dataOut/coverMapsFinal.pkl")
 
 #%%
+#Create a file to coverage with best BTS server
 map_data = pd.read_pickle("./dataOut/coverMapsFinal.pkl")
 map_data["best_server"] = map_data.drop(["dist_1","dist_2","dist_3","lat","lon"],axis=1).max(axis=1)
 
 #%%
+#Define coverage levels
 def cover_level(rssi):
     if rssi >= -65:
         return "Excellent"
@@ -109,23 +112,53 @@ def cover_level(rssi):
         return "Shadow"
 
 #%%
-
+#Add coverage levels of previous step
 map_data["nivel_cobertura"] = map_data["best_server"].apply(cover_level)
 
 #%%
-
-BBox = ((map_data["lon"].min(), map_data["lon"].max(), map_data["lat"].min(),map_data["lat"].max()))
-#BBox = ((map_data["lon"].min()-0.002, map_data["lon"].max()+0.002, map_data["lat"].min()-0.002,map_data["lat"].max()+0.002))
+#GEnerate the coverage plot
+#BBox = ((map_data["lon"].min(), map_data["lon"].max(), map_data["lat"].min(),map_data["lat"].max()))
+#Build a box to plt results on the georeferenced map
+BBox = ((map_data["lon"].min()-0.002, map_data["lon"].max()+0.002, map_data["lat"].min()-0.002,map_data["lat"].max()+0.002))
 mapGeoRef = plt.imread('./figs/map4.png')
-
+#plot the results over the georeferenced map
 fig, ax = plt.subplots(figsize = (8,7))
-sns.scatterplot(x = "lon", y = "lat", alpha= 0.85, ax =ax, legend='brief', zorder=1, data = map_data, hue = map_data["nivel_cobertura"].tolist())
-#sns.scatterplot(x = "lon", y = "lat", alpha= 0.55, ax =ax, legend='brief',shade=True, cmap="viridis",shade_lowest=False, zorder=1, data = map_data)
-#shade=True, cmap="viridis",shade_lowest=False,
-
-
+sns.scatterplot(x = "lon", y = "lat", alpha= 0.75, ax =ax, legend='brief', zorder=1, data = map_data, hue = map_data["nivel_cobertura"].tolist())
 ax.set_title('Cover Map by RSSI level')
 ax.set_xlim(BBox[0],BBox[1])
 ax.set_ylim(BBox[2],BBox[3])
 ax.imshow(mapGeoRef, zorder=0, extent = BBox, aspect= 'equal')
 plt.show()
+
+#%%
+
+#Creating Dataframe to RSSI analyses
+X_test.to_pickle("./dataOut/rssiReal.pkl")
+df_Rssi = pd.read_pickle("./dataOut/rssiReal.pkl")
+df_Rssi["index"] = range(1,614)
+#%%
+# style
+plt.style.use('seaborn-darkgrid')
+
+# create a color palette
+palette = plt.get_cmap('Set1')
+
+# multiple line plot
+num = 0
+for column in df_Rssi.drop(["index","dist_1","dist_2","dist_3", "lat", "lon",
+                            "RSSI_pred_0","RSSI_real_0","RSSI_pred_1","RSSI_real_1",
+                            "RSSI_pred_2","RSSI_real_2","RSSI_pred_3","RSSI_real_3",
+                            "RSSI_pred_4","RSSI_real_4","RSSI_pred_5","RSSI_real_5",
+                            "RSSI_pred_6","RSSI_real_6","RSSI_pred_7","RSSI_real_7"], axis = 1):
+    num += 1
+    plt.plot(df_Rssi["index"], df_Rssi[column], marker='', color=palette(num), linewidth=1, alpha=0.9, label=column)
+
+# Add legend
+plt.legend(loc=2, ncol=2)
+
+# Add titles
+plt.title("Predict RSSI x Real RSSI ", loc='left', fontsize=12, fontweight=0, color='orange')
+plt.xlabel("Test Points")
+plt.ylabel("RSSI Level")
+plt.show()
+
